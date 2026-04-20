@@ -32,18 +32,12 @@ Use vanilla/stock everything where possible---no frameworks.
 
 # Implementation
 
-## OpenCV improvements
-
-- [ ] **Forward-backward error check**: after tracking p → p' forward, track p' → p'' backward and reject the result if `|p - p''|` exceeds a threshold (~1–2px). Catches cases where LK converges but onto the wrong feature.
-- [ ] **Drift detection**: accumulating subpixel errors compound silently over many frames while `status === 1` stays true. Mitigate with periodic template re-detection (save a patch at frame 0, run `matchTemplate` to snap the LK track back when confidence is higher) or use FB error spikes as a proxy signal.
-- [ ] **Velocity consistency check**: a sudden jump > N pixels between frames (relative to expected bar speed) signals loss; flag and prompt user to re-click.
-
 ## `analysis.ts`
 
 Inputs throughout: `positions: {x, y}[]` (one per frame) and `fps` from video metadata.
 
-- [ ] **Smoothing**: apply a moving average (window ~5 frames, tunable) to positions before any derivative-dependent step.
-- [ ] **Velocity**: take finite differences of the smoothed positions; output speed in px/frame (or px/s via fps). Two passes: smooth first, differentiate second.
+- [x] **Smoothing**: apply a moving average (window ~5 frames, tunable) to positions before any derivative-dependent step.
+- [x] **Velocity**: take finite differences of the smoothed positions; output speed in px/frame (or px/s via fps). Two passes: smooth first, differentiate second.
 - [ ] **Rep detection**: find local extrema in smoothed y — zero-crossings of velocity that exceed an amplitude threshold to ignore wobbles. Output: `{startFrame, bottomFrame, endFrame}[]`.
 - [ ] **Pause detection**: within each rep, find contiguous regions where speed is below a threshold (tunable, ~5–10% of peak speed for that rep) for at least N frames. Output: `{startFrame, endFrame, durationMs}[]` per rep. Use a shorter smoothing window here than for rep detection so brief pauses aren't averaged away.
 - [ ] **Path straightness**: per rep, compute (a) RMS horizontal deviation of x from the rep's mean x, and (b) sinuosity = total path length / straight-line displacement. 1.0 sinuosity is a perfect vertical line.
@@ -70,5 +64,14 @@ Inputs: a `CanvasRenderingContext2D` (or `OffscreenCanvas`), analysis results, a
 
 # For later
 
- - MP4 export (WebM only)
- - audio in export , automatic re-initialization on tracking loss (prompt user to re-click instead).
+## Tracking improvements
+
+- [ ] Automatic re-initialization on tracking loss (prompt user to re-click or advance frames instead)
+- [ ] **Forward-backward error check**: after tracking p → p' forward, track p' → p'' backward and reject the result if `|p - p''|` exceeds a threshold (~1–2px). Catches cases where LK converges but onto the wrong feature.
+- [ ] **Drift detection**: accumulating subpixel errors compound silently over many frames while `status === 1` stays true. Mitigate with periodic template re-detection (save a patch at frame 0, run `matchTemplate` to snap the LK track back when confidence is higher) or use FB error spikes as a proxy signal.
+- [ ] **Velocity consistency check**: a sudden jump > N pixels between frames (relative to expected bar speed) signals loss; flag and prompt user to re-click.
+
+## Better export
+
+ - [ ] MP4 export (WebM only)
+ - [ ] audio in export
