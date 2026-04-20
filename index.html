@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>barpath</title>
+    <style>
+      body { font-family: monospace; padding: 1rem; max-width: 960px; }
+      canvas { display: block; border: 1px solid #ccc; cursor: crosshair; max-width: 100%; }
+      #info { margin: 0.5rem 0; min-height: 1.4em; }
+      #fixture { background: #f4f4f4; padding: 0.5rem; display: none; }
+      button { margin-right: 0.5rem; }
+    </style>
+  </head>
+  <body>
+    <input type="file" id="file-input" accept="video/*" />
+    <div id="info">Load a video to begin.</div>
+    <pre id="fixture"></pre>
+    <canvas id="canvas"></canvas>
+    <video id="video" style="display:none"></video>
+    <script src="/vendor/opencv.cjs"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
