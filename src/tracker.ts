@@ -1,10 +1,16 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CV = any;
 
+export interface Frame {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
+
 export function trackPoint(
   cv: CV,
-  prevGray: ImageData,
-  nextGray: ImageData,
+  prevGray: Frame,
+  nextGray: Frame,
   pt: { x: number; y: number }
 ): { x: number; y: number } | null {
   const prev = cv.matFromImageData(prevGray);
