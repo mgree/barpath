@@ -3,7 +3,9 @@ import { smooth, velocity } from "./analysis.js";
 
 // Box-Muller: uniform -> Gaussian
 function randn(): number {
-  return Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
+  const u = 1 - Math.random(); // (0, 1]
+  const v = Math.random(); // [0, 1)
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
 function mse(pts: { x: number; y: number }[], truth: { x: number; y: number }[]): number {
