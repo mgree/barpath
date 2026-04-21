@@ -38,7 +38,7 @@ Inputs throughout: `positions: {x, y}[]` (one per frame) and `fps` from video me
 
 - [x] **Smoothing**: apply a moving average (window ~5 frames, tunable) to positions before any derivative-dependent step.
 - [x] **Velocity**: take finite differences of the smoothed positions; output speed in px/frame (or px/s via fps). Two passes: smooth first, differentiate second.
-- [ ] **Rep detection**: find local extrema in smoothed y — zero-crossings of velocity that exceed an amplitude threshold to ignore wobbles. Output: `{startFrame, bottomFrame, endFrame}[]`.
+- [ ] **Rep detection**: find local extrema in smoothed y — zero-crossings of velocity that exceed an amplitude threshold to ignore wobbles. Output: `{startFrame, endFrame}[]`.
 - [ ] **Pause detection**: within each rep, find contiguous regions where speed is below a threshold (tunable, ~5–10% of peak speed for that rep) for at least N frames. Output: `{startFrame, endFrame, durationMs}[]` per rep. Use a shorter smoothing window here than for rep detection so brief pauses aren't averaged away.
 - [ ] **Path straightness**: per rep, compute (a) RMS horizontal deviation of x from the rep's mean x, and (b) sinuosity = total path length / straight-line displacement. 1.0 sinuosity is a perfect vertical line.
 
@@ -46,10 +46,11 @@ Inputs throughout: `positions: {x, y}[]` (one per frame) and `fps` from video me
 
 Inputs: a `CanvasRenderingContext2D` (or `OffscreenCanvas`), analysis results, and a background frame. No DOM access — the UI layer owns the canvas element and calls in. All sub-functions individually exported for testability.
 
-- [ ] **`drawBackground(ctx, frame, frameIndex)`**: draw the given frame as the canvas background. `frameIndex` is a parameter; the UI decides which frame to use (callers need to skip past e.g. unrack).
-- [ ] **`drawPaths(ctx, positions, reps, palette)`**: draw each rep's positions as a polyline in `palette[i]`. Palette is caller-supplied so the UI can render a matching legend (e.g. in a rep summary table).
-- [ ] **`drawPauseMarkers(ctx, positions, pauses)`**: for each pause, draw a dot at the midpoint position and a duration label (e.g. "1.2s") nearby.
-- [ ] **`annotate(ctx, frame, frameIndex, positions, reps, pauses, palette)`**: convenience wrapper that calls the three above in order. Used by both the UI and the export path.
+- [x] **`drawBackground(ctx, frame, frameIndex)`**: draw the given frame as the canvas background. `frameIndex` is a parameter; the UI decides which frame to use (callers need to skip past e.g. unrack).
+- [x] **`drawPaths(ctx, positions, reps, palette)`**: draw each rep's positions as a polyline in `palette[i]`. Palette is caller-supplied so the UI can render a matching legend (e.g. in a rep summary table).
+- [x] **`drawPauseMarkers(ctx, positions, pauses)`**: for each pause, draw a dot at the midpoint position and a duration label (e.g. "1.2s") nearby.
+- [x] **`annotate(ctx, frame, frameIndex, positions, reps, pauses, palette)`**: convenience wrapper that calls the three above in order. Used by both the UI and the export path.
+- [x] Change the existing `testdata/*.mp4` tests to produce reviewable output. Not snapshot tests, just a human smell test that things look reasonable.
 
 ## UI / `index.html`
 

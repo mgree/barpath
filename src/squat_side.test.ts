@@ -1,2 +1,2 @@
 import { videoTrackingTest } from "./videoTestHelper.js";
-videoTrackingTest({ file: "squat_side.mp4", time: 0, x: 823, y: 260 });
+videoTrackingTest("squat_side.mp4", 0, 823, 260);

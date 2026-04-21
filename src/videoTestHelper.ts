@@ -1,11 +1,15 @@
 import { test, expect } from "vitest";
 import { execFileSync, spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { createCanvas } from "canvas";
 import cv from "./cv.js";
 import { trackPoint, Frame } from "./tracker.js";
+import { drawBackground, drawPaths } from "./annotate.js";
 
 const TESTDATA = path.join(path.dirname(fileURLToPath(import.meta.url)), "../testdata");
+const OUTPUT = path.join(TESTDATA, "output");
 
 const verbose = !!process.env.VERBOSE;
 
@@ -14,13 +18,7 @@ const hasFFmpeg = (() => {
   catch { return false; }
 })();
 
-const TRANSPOSE: Record<number, string> = {
-  90:  "transpose=1",
-  180: "vflip,hflip",
-  270: "transpose=2",
-};
-
-function videoInfo(file: string): { width: number; height: number; rotateFilter: string; nbFrames: number } {
+function videoInfo(file: string): { width: number; height: number; nbFrames: number } {
   const out = execFileSync("ffprobe", [
     "-v", "error", "-select_streams", "v:0",
     "-show_entries", "stream=width,height,nb_frames",
@@ -38,11 +36,9 @@ function videoInfo(file: string): { width: number; height: number; rotateFilter:
     path.join(TESTDATA, file),
   ]).toString().trim();
   const rotate = ((parseInt(rotOut) || 0) + 360) % 360;
-
-  const rotateFilter = TRANSPOSE[rotate] ?? "";
   if (rotate === 90 || rotate === 270) [width, height] = [height, width];
 
-  return { width, height, rotateFilter, nbFrames };
+  return { width, height, nbFrames };
 }
 
 async function* decodeFrames(
@@ -50,14 +46,12 @@ async function* decodeFrames(
   startTime: number,
   width: number,
   height: number,
-  rotateFilter: string,
 ): AsyncGenerator<Frame> {
   const frameSize = width * height * 4;
   const proc = spawn("ffmpeg", [
     "-loglevel", "error",
     ...(startTime > 0 ? ["-ss", String(startTime)] : []),
     "-i", path.join(TESTDATA, file),
-    ...(rotateFilter ? ["-vf", rotateFilter] : []),
     "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1",
   ]);
 
@@ -71,28 +65,25 @@ async function* decodeFrames(
   }
 }
 
-export interface Fixture {
-  file: string;
-  time: number;
-  x: number;
-  y: number;
-}
-
-export function videoTrackingTest(fix: Fixture): void {
-  test.skipIf(!hasFFmpeg)("tracks to end without loss", async () => {
-    const { width, height, rotateFilter, nbFrames } = videoInfo(fix.file);
-    let pt = { x: fix.x, y: fix.y };
+export function videoTrackingTest(file: string, time: number, x: number, y: number): void {
+  test.skipIf(!hasFFmpeg)("tracks to end without loss and writes annotated PNG", async () => {
+    const { width, height, nbFrames } = videoInfo(file);
+    let pt = { x, y };
     let prev: Frame | null = null;
+    let firstFrame: Frame | null = null;
+    const positions: { x: number; y: number }[] = [pt];
     let frameCount = 0;
     let lastUpdateAt = Date.now();
     let lastUpdateFrame = 0;
 
-    const label = `${fix.file} from t=${fix.time}`;
-    for await (const frame of decodeFrames(fix.file, fix.time, width, height, rotateFilter)) {
-      if (prev !== null) {
+    const label = `${file} from t=${time}`;
+    let lostAt: number | null = null;
+    for await (const frame of decodeFrames(file, time, width, height)) {
+      if (firstFrame === null) firstFrame = frame;
+      if (prev !== null && lostAt === null) {
         const next = trackPoint(cv, prev, frame, pt);
-        expect(next, `tracking lost at frame ${frameCount}`).not.toBeNull();
-        pt = next!;
+        if (next === null) { lostAt = frameCount; }
+        else { pt = next; positions.push(pt); }
       }
       prev = frame;
       frameCount++;
@@ -109,5 +100,16 @@ export function videoTrackingTest(fix: Fixture): void {
     if (verbose) process.stderr.write(`  ${label}: done (${frameCount}/${nbFrames} frames)\n`);
 
     expect(frameCount).toBeGreaterThan(1);
+
+    const canvas = createCanvas(width, height);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ctx = canvas.getContext("2d") as any;
+    drawBackground(ctx, firstFrame!);
+    drawPaths(ctx, positions, [{ startFrame: 0, endFrame: positions.length - 1 }], ["#ff0000"]);
+
+    const stem = file.replace(/\.mp4$/, "");
+    writeFileSync(path.join(OUTPUT, `${stem}.png`), canvas.toBuffer("image/png"));
+
+    expect(lostAt, `tracking lost at frame ${lostAt} of ${frameCount}`).toBeNull();
   }, 240_000);
 }
