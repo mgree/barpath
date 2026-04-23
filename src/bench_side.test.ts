@@ -1,2 +1,2 @@
 import { videoTrackingTest } from "./videoTestHelper.js";
-videoTrackingTest("bench_side.mp4", 16.6998, 1216, 30);
+videoTrackingTest("bench_side.mp4", 16.6998, 1216, 30, 22.0000);

@@ -18,16 +18,19 @@ const hasFFmpeg = (() => {
   catch { return false; }
 })();
 
-function videoInfo(file: string): { width: number; height: number; nbFrames: number } {
+function videoInfo(file: string, startTime: number, endTime?: number): { width: number; height: number; nbFrames: number } {
   const out = execFileSync("ffprobe", [
     "-v", "error", "-select_streams", "v:0",
-    "-show_entries", "stream=width,height,nb_frames",
+    "-show_entries", "stream=width,height,nb_frames,duration",
     "-of", "csv=p=0",
     path.join(TESTDATA, file),
   ]).toString().trim();
-  const [w, h, nbStr] = out.split(",");
+  const [w, h, nbStr, durStr] = out.split(",");
   let [width, height] = [Number(w), Number(h)];
-  const nbFrames = parseInt(nbStr);
+  const totalFrames = parseInt(nbStr);
+  const duration = parseFloat(durStr);
+  const fps = totalFrames / duration;
+  const nbFrames = Math.round(((endTime ?? duration) - startTime) * fps);
 
   const rotOut = execFileSync("ffprobe", [
     "-v", "error", "-select_streams", "v:0",
@@ -46,12 +49,14 @@ async function* decodeFrames(
   startTime: number,
   width: number,
   height: number,
+  endTime?: number,
 ): AsyncGenerator<Frame> {
   const frameSize = width * height * 4;
   const proc = spawn("ffmpeg", [
     "-loglevel", "error",
     ...(startTime > 0 ? ["-ss", String(startTime)] : []),
     "-i", path.join(TESTDATA, file),
+    ...(endTime !== undefined ? ["-t", String(endTime - startTime)] : []),
     "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1",
   ]);
 
@@ -65,9 +70,9 @@ async function* decodeFrames(
   }
 }
 
-export function videoTrackingTest(file: string, time: number, x: number, y: number): void {
+export function videoTrackingTest(file: string, time: number, x: number, y: number, endTime?: number): void {
   test.skipIf(!hasFFmpeg)("tracks to end without loss and writes annotated PNG", async () => {
-    const { width, height, nbFrames } = videoInfo(file);
+    const { width, height, nbFrames } = videoInfo(file, time, endTime);
     let pt = { x, y };
     let prev: Frame | null = null;
     let firstFrame: Frame | null = null;
@@ -78,7 +83,7 @@ export function videoTrackingTest(file: string, time: number, x: number, y: numb
 
     const label = `${file} from t=${time}`;
     let lostAt: number | null = null;
-    for await (const frame of decodeFrames(file, time, width, height)) {
+    for await (const frame of decodeFrames(file, time, width, height, endTime)) {
       if (firstFrame === null) firstFrame = frame;
       if (prev !== null && lostAt === null) {
         const next = trackPoint(cv, prev, frame, pt);
