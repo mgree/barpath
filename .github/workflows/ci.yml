@@ -7,26 +7,29 @@ on:
 
 jobs:
   test:
+    name: Run tests (node version ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [22, 24, 25]
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - name: Setup node (version ${{ matrix.node-version }})
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Install ffmpeg
+      - name: Install system dependencies
         run: sudo apt-get install -y ffmpeg
 
-      - name: Install dependencies
+      - name: Install node dependencies
         run: npm ci
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
+      - name: Run tests
         run: npm test
