@@ -22,7 +22,7 @@ export function drawPaths(
     const { startFrame, endFrame } = reps[r];
     ctx.beginPath();
     ctx.strokeStyle = palette[r % palette.length];
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 4;
     for (let i = startFrame; i <= endFrame; i++) {
       const p = positions[i];
       if (!p) continue;

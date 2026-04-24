@@ -26,7 +26,7 @@ Use vanilla/stock everything where possible---no frameworks.
 
  - [x] Generate a synthetic test video (a dot moving in a known pattern, generated via canvas + MediaRecorder) as a ground-truth fixture (parameter recovery, essentially) for tracker and export tests
  - [x] Use a variety of squat/bench/deadlift videos from a variety of angles as a more realistic test suite.
- - [ ] Unit tests for `analysis.js` before or alongside implementation
+ - [x] Unit tests for `analysis.js` before or alongside implementation
  - [ ] Add Playwright once the canvas UI exists for click-to-mark and overlay rendering
  - Some kind of snapshot tests for making sure we treat the real videos similarly across changes
 
@@ -56,12 +56,12 @@ Inputs: a `CanvasRenderingContext2D` (or `OffscreenCanvas`), analysis results, a
 
 **Build order:** `analysis.ts` → `annotate.ts` → pipeline PNG tests → UI → Playwright.
 
-- [ ] **Pipeline PNG tests**: before any UI work, add tests that run the full pipeline on each real video (track → analyze → annotate onto `OffscreenCanvas` → write PNG to `testdata/output/`). Not snapshot assertions — just smoke tests that confirm the pipeline doesn't throw and produce eyeball-able output. Snapshot assertions come later once output stabilizes.
-- [ ] **State machine**: model the UI as a state machine (`upload → frameSelection → identification → report`) in a plain TS module with no DOM dependencies. Use `history.pushState` to sync each state to a URL so the back button works naturally and "upload a new video" is just navigating back to the start state. Unit-test the state logic directly.
-- [ ] **Upload**: full-page drop zone + centered "Upload video" button (`<input type="file" accept="video/*">`). Drop zone covers the whole page on desktop; the button is the primary path on mobile (also surfaces camera roll on iOS/Android).
-- [ ] **Frame selection**: video with play/pause, scrubber, and explicit prev-frame/next-frame buttons. Instruction label: "Find the frame just before your first rep." Confirm button saves the frame index.
-- [ ] **Barbell identification**: tap/click to place a point; a fixed magnified inset in a corner (default: bottom-right, with a way to change corners in case the hand or bar is in the way) shows the area under the cursor/finger with a crosshair. Drag to adjust. Confirm button saves the point.
-- [ ] **Report view**: annotated still canvas; table below with columns: color swatch, rep number, eccentric velocity, concentric velocity, pause duration(s); per-row toggle (eye icon) to show/hide that rep's overlay. UI owns the palette and passes it to `annotate.ts`. PNG export via `canvas.toBlob` (labeled "Export image").
+- [x] **Pipeline PNG tests**: before any UI work, add tests that run the full pipeline on each real video (track → analyze → annotate onto `OffscreenCanvas` → write PNG to `testdata/output/`). Not snapshot assertions — just smoke tests that confirm the pipeline doesn't throw and produce eyeball-able output. Snapshot assertions come later once output stabilizes.
+- [x] **State machine**: model the UI as a state machine (`upload → frameSelection → identification → report`) in a plain TS module with no DOM dependencies. Use `history.pushState` to sync each state to a URL so the back button works naturally and "upload a new video" is just navigating back to the start state. Unit-test the state logic directly.
+- [x] **Upload**: full-page drop zone + centered "Upload video" button (`<input type="file" accept="video/*">`). Drop zone covers the whole page on desktop; the button is the primary path on mobile (also surfaces camera roll on iOS/Android).
+- [x] **Frame selection**: video with play/pause, scrubber, and explicit prev-frame/next-frame buttons. Instruction label: "Find the frame just before your first rep." Confirm button saves the frame index.
+- [x] **Barbell identification**: tap/click to place a point; a fixed magnified inset in a corner (default: bottom-right, with a way to change corners in case the hand or bar is in the way) shows the area under the cursor/finger with a crosshair. Drag to adjust. Confirm button saves the point.
+- [x] **Report view**: annotated still canvas; table below with columns: color swatch, rep number, eccentric velocity, concentric velocity, pause duration(s); per-row toggle (eye icon) to show/hide that rep's overlay. UI owns the palette and passes it to `annotate.ts`. PNG export via `canvas.toBlob` (labeled "Export image").
 
 # For later
 

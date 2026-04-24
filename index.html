@@ -5,19 +5,191 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>barpath</title>
     <style>
-      body { font-family: monospace; padding: 1rem; max-width: 960px; }
-      canvas { display: block; border: 1px solid #ccc; cursor: crosshair; max-width: 100%; }
-      #info { margin: 0.5rem 0; min-height: 1.4em; }
-      #fixture { background: #f4f4f4; padding: 0.5rem; display: none; }
-      button { margin-right: 0.5rem; }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: system-ui, sans-serif;
+        background: #111;
+        color: #eee;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 0.75rem 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      #video-area {
+        position: relative;
+        background: #000;
+        flex-shrink: 0;
+        aspect-ratio: var(--video-aspect, 16/9);
+        width: min(100%, calc(65vh * var(--video-aspect, 16/9)));
+      }
+
+      #video-area video,
+      #overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      #video-area video { object-fit: contain; }
+      #overlay { cursor: crosshair; }
+
+      /* --- zoom modal --- */
+      #zoom-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(0,0,0,0.7);
+        align-items: center;
+        justify-content: center;
+      }
+      #zoom-modal.open { display: flex; }
+      #zoom-modal-inner {
+        position: relative;
+        background: #000;
+        border: 2px solid #fff;
+        border-radius: 8px;
+        overflow: visible;
+      }
+      #zoom-canvas { display: block; cursor: crosshair; }
+      #zoom-close {
+        position: absolute;
+        top: -16px; right: -16px;
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: #374151;
+        color: #eee;
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        line-height: 1;
+      }
+      .zoom-arrow {
+        position: absolute;
+        width: 40px; height: 40px;
+        background: rgba(55,65,81,0.85);
+        color: #eee;
+        border: none;
+        border-radius: 6px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #zoom-up    { top: -48px;  left: 50%; transform: translateX(-50%); }
+      #zoom-down  { bottom: -48px; left: 50%; transform: translateX(-50%); }
+      #zoom-left  { left: -48px; top: 50%; transform: translateY(-50%); }
+      #zoom-right { right: -48px; top: 50%; transform: translateY(-50%); }
+      #zoom-hint {
+        position: absolute;
+        bottom: -32px; left: 0; right: 0;
+        text-align: center;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        pointer-events: none;
+      }
+
+      #controls {
+        flex: 1;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow-y: auto;
+      }
+
+      /* --- shared control primitives --- */
+
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      .btn-primary  { background: #2563eb; color: #fff; }
+      .btn-secondary { background: #374151; color: #eee; }
+      .btn-primary:active  { background: #1d4ed8; }
+      .btn-secondary:active { background: #4b5563; }
+
+      .transport {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .transport .btn { flex: 1; font-size: 1.25rem; }
+
+      input[type="range"] {
+        width: 100%;
+        height: 36px;
+        accent-color: #2563eb;
+        cursor: pointer;
+      }
+
+      .hint {
+        font-size: 0.875rem;
+        color: #9ca3af;
+        text-align: center;
+      }
+
+      /* --- results table --- */
+
+      .rep-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+      .rep-table th { text-align: left; padding: 0.4rem 0.5rem; color: #9ca3af; font-weight: 500; }
+      .rep-table td { padding: 0.4rem 0.5rem; border-top: 1px solid #333; }
+      .rep-table tr { cursor: pointer; }
+      .rep-table tr.muted td { opacity: 0.35; }
+      .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+
+      /* --- progress --- */
+      .progress-bar {
+        height: 6px;
+        background: #374151;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: #2563eb;
+        transition: width 0.1s;
+      }
     </style>
   </head>
   <body>
-    <input type="file" id="file-input" accept="video/*" />
-    <div id="info">Load a video to begin.</div>
-    <pre id="fixture"></pre>
-    <canvas id="canvas"></canvas>
-    <video id="video" style="display:none"></video>
+    <header>barpath</header>
+    <div id="video-area">
+      <video id="video" playsinline webkit-playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div id="zoom-modal">
+      <div id="zoom-modal-inner">
+        <canvas id="zoom-canvas" width="240" height="240"></canvas>
+        <button id="zoom-close">✕</button>
+        <button class="zoom-arrow" id="zoom-up">▲</button>
+        <button class="zoom-arrow" id="zoom-down">▼</button>
+        <button class="zoom-arrow" id="zoom-left">◀</button>
+        <button class="zoom-arrow" id="zoom-right">▶</button>
+        <div id="zoom-hint">Tap to select endcap center</div>
+      </div>
+    </div>
+    <div id="controls"></div>
     <script src="/vendor/opencv.cjs"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
