@@ -63,10 +63,11 @@ function syncOverlaySize() {
 
 function toVideoCoords(clientX: number, clientY: number) {
   const r = overlay.getBoundingClientRect();
-  return {
+  const coords = {
     x: (clientX - r.left) * (video.videoWidth / r.width),
     y: (clientY - r.top)  * (video.videoHeight / r.height),
   };
+  return coords;
 }
 
 // ---- Zoom modal ----
@@ -78,8 +79,11 @@ let zoomViewCenter: { x: number; y: number } | null = null;
 
 function renderZoomCanvas() {
   if (!zoomViewCenter) return;
+  captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+  zoomCtx.fillStyle = "#000";
+  zoomCtx.fillRect(0, 0, ZOOM_CANVAS_SIZE, ZOOM_CANVAS_SIZE);
   const { x, y } = zoomViewCenter;
-  zoomCtx.drawImage(video,
+  zoomCtx.drawImage(captureCanvas,
     x - ZOOM_HALF, y - ZOOM_HALF, ZOOM_HALF * 2, ZOOM_HALF * 2,
     0, 0, ZOOM_CANVAS_SIZE, ZOOM_CANVAS_SIZE
   );
@@ -111,6 +115,7 @@ document.getElementById("zoom-up")!.addEventListener("click",    () => panZoom( 
 document.getElementById("zoom-down")!.addEventListener("click",  () => panZoom( 0,  1));
 document.getElementById("zoom-left")!.addEventListener("click",  () => panZoom(-1,  0));
 document.getElementById("zoom-right")!.addEventListener("click", () => panZoom( 1,  0));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeZoomModal(); });
 
 // ---- Crosshair ----
 
