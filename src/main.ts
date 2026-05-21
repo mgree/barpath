@@ -6,7 +6,6 @@ declare const cv: any;
 
 // ---- DOM refs ----
 
-const videoArea  = document.getElementById("video-area")!;
 const video      = document.getElementById("video") as HTMLVideoElement;
 const overlay    = document.getElementById("overlay") as HTMLCanvasElement;
 const zoomModal  = document.getElementById("zoom-modal")!;
@@ -27,17 +26,26 @@ const cvReady = new Promise<void>((resolve) => {
 // ---- State ----
 
 let state: AppState = { stage: "upload" };
+let stateStack: AppState[] = [state];
+let stackPos = 0;
+history.replaceState({ pos: 0 }, "");
 
 function dispatch(event: AppEvent) {
   const next = transition(state, event);
   if (next === state) return;
-  if (event.type !== "back") history.pushState({ stage: next.stage }, "");
+  stackPos++;
+  stateStack = stateStack.slice(0, stackPos);
+  stateStack.push(next);
+  history.pushState({ pos: stackPos }, "");
   state = next;
   render();
 }
 
-window.addEventListener("popstate", () => {
-  dispatch({ type: "back" });
+window.addEventListener("popstate", (e) => {
+  const pos: number = e.state?.pos ?? 0;
+  stackPos = pos;
+  state = stateStack[pos];
+  render();
 });
 
 // ---- Video helpers ----
@@ -45,7 +53,10 @@ window.addEventListener("popstate", () => {
 let fps = 30;
 
 function seek(t: number): Promise<void> {
-  return new Promise((resolve) => { video.onseeked = () => resolve(); video.currentTime = t; });
+  return new Promise((resolve) => {
+    video.addEventListener("seeked", resolve, { once: true });
+    video.currentTime = t;
+  });
 }
 
 function captureFrame() {
@@ -63,11 +74,10 @@ function syncOverlaySize() {
 
 function toVideoCoords(clientX: number, clientY: number) {
   const r = overlay.getBoundingClientRect();
-  const coords = {
-    x: (clientX - r.left) * (video.videoWidth / r.width),
+  return {
+    x: (clientX - r.left) * (video.videoWidth  / r.width),
     y: (clientY - r.top)  * (video.videoHeight / r.height),
   };
-  return coords;
 }
 
 // ---- Zoom modal ----
@@ -90,12 +100,6 @@ function renderZoomCanvas() {
   paintCrosshair(zoomCtx, ZOOM_CANVAS_SIZE / 2, ZOOM_CANVAS_SIZE / 2);
 }
 
-function openZoomModal(vx: number, vy: number) {
-  zoomViewCenter = { x: vx, y: vy };
-  renderZoomCanvas();
-  zoomModal.classList.add("open");
-}
-
 function closeZoomModal() {
   zoomModal.classList.remove("open");
 }
@@ -110,12 +114,41 @@ function panZoom(dvx: number, dvy: number) {
   renderZoomCanvas();
 }
 
-document.getElementById("zoom-close")!.addEventListener("click", closeZoomModal);
+// X button and Escape go back in history; popstate handler will dispatch "back"
+// which transitions *Zooming → non-zooming and calls render (which closes the modal).
+function closeZoomViaUserAction() {
+  if (state.stage === "endcapSelectZooming" || state.stage === "endcapPendingZooming") {
+    history.back();
+  }
+}
+
+document.getElementById("zoom-close")!.addEventListener("click", closeZoomViaUserAction);
 document.getElementById("zoom-up")!.addEventListener("click",    () => panZoom( 0, -1));
 document.getElementById("zoom-down")!.addEventListener("click",  () => panZoom( 0,  1));
 document.getElementById("zoom-left")!.addEventListener("click",  () => panZoom(-1,  0));
 document.getElementById("zoom-right")!.addEventListener("click", () => panZoom( 1,  0));
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeZoomModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeZoomViaUserAction(); });
+
+// Overlay click: open zoom (only active in non-zooming endcap stages).
+overlay.addEventListener("click", (e) => {
+  if (state.stage !== "endcapSelect" && state.stage !== "endcapPending") return;
+  const zoomCenter = toVideoCoords(e.clientX, e.clientY);
+  dispatch({ type: "openZoom", zoomCenter, videoTime: video.currentTime });
+});
+
+// Zoom canvas click: confirm the selected point.
+zoomCanvas.addEventListener("click", (e) => {
+  if (!zoomViewCenter) return;
+  const r = zoomCanvas.getBoundingClientRect();
+  const relX = (e.clientX - r.left) / r.width;
+  const relY = (e.clientY - r.top)  / r.height;
+  const startPt = {
+    x: zoomViewCenter.x + (relX - 0.5) * ZOOM_HALF * 2,
+    y: zoomViewCenter.y + (relY - 0.5) * ZOOM_HALF * 2,
+  };
+  video.pause();
+  dispatch({ type: "zoomConfirmed", startPt });
+});
 
 // ---- Crosshair ----
 
@@ -137,7 +170,6 @@ function drawCrosshair(x: number, y: number) {
 
 function renderUpload() {
   overlay.style.display = "none";
-  closeZoomModal();
   video.style.display = "none";
   controls.innerHTML = `
     <p class="hint">Upload a video to begin.</p>
@@ -174,12 +206,14 @@ function loadFile(file: File) {
 }
 
 async function renderEndcapSelect() {
-  if (state.stage !== "endcapSelect") return;
+  if (state.stage !== "endcapSelect" && state.stage !== "endcapPending") return;
   video.style.display = "";
   overlay.style.display = "";
-  closeZoomModal();
 
   if (state.startTime > 0) await seek(state.startTime);
+  if (state.stage !== "endcapSelect" && state.stage !== "endcapPending") return;
+
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
 
   controls.innerHTML = `
     <p class="hint">Scrub to the starting frame, then tap the barbell endcap.</p>
@@ -194,10 +228,14 @@ async function renderEndcapSelect() {
     <button class="btn btn-primary" id="confirm-endcap" disabled>Confirm →</button>
   `;
 
-  const scrubber = document.getElementById("scrubber") as HTMLInputElement;
+  const scrubber     = document.getElementById("scrubber") as HTMLInputElement;
   const playPauseBtn = document.getElementById("play-pause")!;
-  const confirmBtn = document.getElementById("confirm-endcap") as HTMLButtonElement;
-  let selectedPt: { x: number; y: number } | null = null;
+  const confirmBtn   = document.getElementById("confirm-endcap") as HTMLButtonElement;
+
+  if (state.stage === "endcapPending") {
+    paintCrosshair(ctx, state.startPt.x, state.startPt.y);
+    confirmBtn.disabled = false;
+  }
 
   video.addEventListener("timeupdate", () => { scrubber.value = String(video.currentTime); });
   video.addEventListener("play",  () => { playPauseBtn.textContent = "⏸"; });
@@ -221,29 +259,8 @@ async function renderEndcapSelect() {
     video.pause(); video.currentTime = Math.min(video.duration, video.currentTime + 0.25);
   });
 
-  overlay.addEventListener("click", (e) => {
-    const pt = toVideoCoords(e.clientX, e.clientY);
-    openZoomModal(pt.x, pt.y);
-  });
-
-  zoomCanvas.addEventListener("click", (e) => {
-    if (!zoomViewCenter) return;
-    const r = zoomCanvas.getBoundingClientRect();
-    const relX = (e.clientX - r.left) / r.width;
-    const relY = (e.clientY - r.top)  / r.height;
-    selectedPt = {
-      x: zoomViewCenter.x + (relX - 0.5) * ZOOM_HALF * 2,
-      y: zoomViewCenter.y + (relY - 0.5) * ZOOM_HALF * 2,
-    };
-    closeZoomModal();
-    drawCrosshair(selectedPt.x, selectedPt.y);
-    confirmBtn.disabled = false;
-  });
-
   confirmBtn.addEventListener("click", () => {
-    if (!selectedPt) return;
-    video.pause();
-    dispatch({ type: "endcapConfirmed", startPt: selectedPt, startTime: video.currentTime });
+    dispatch({ type: "endcapConfirmed" });
   });
 }
 
@@ -253,7 +270,6 @@ async function renderAnalyzing() {
 
   video.style.display = "";
   overlay.style.display = "";
-  closeZoomModal();
 
   controls.innerHTML = `
     <p class="hint" id="progress-label">Preparing…</p>
@@ -264,7 +280,9 @@ async function renderAnalyzing() {
   const fill  = document.getElementById("progress-fill")!;
 
   await cvReady;
+  if (state.stage !== "analyzing") return;
   await seek(startTime);
+  if (state.stage !== "analyzing") return;
 
   const positions: { x: number; y: number }[] = [startPt];
   let pt = startPt;
@@ -274,10 +292,11 @@ async function renderAnalyzing() {
   let frameIdx = 0;
 
   for (let t = startTime + step; t <= video.duration; t += step) {
-    // check if user navigated away
     if (state.stage !== "analyzing") return;
 
     await seek(t);
+    if (state.stage !== "analyzing") return;
+
     const frame = captureFrame();
     const next = trackPoint(cv, prevFrame, frame, pt);
     if (!next) break;
@@ -290,7 +309,6 @@ async function renderAnalyzing() {
     label.textContent = `Analyzing… frame ${frameIdx}`;
     fill.style.width = `${pct}%`;
 
-    // draw growing path
     ctx.clearRect(0, 0, overlay.width, overlay.height);
     ctx.strokeStyle = "#ef4444";
     ctx.lineWidth = 2;
@@ -300,7 +318,6 @@ async function renderAnalyzing() {
   }
 
   const palette = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
-  // For now, treat the whole run as one rep; analysis.ts rep detection to be wired up later.
   dispatch({
     type: "analysisComplete",
     positions,
@@ -316,13 +333,12 @@ function renderResults() {
 
   video.style.display = "";
   overlay.style.display = "";
-  closeZoomModal();
 
   const visibility = reps.map(() => true);
 
   function redraw() {
     ctx.clearRect(0, 0, overlay.width, overlay.height);
-    const visibleReps = reps.filter((_, i) => visibility[i]);
+    const visibleReps    = reps.filter((_,    i) => visibility[i]);
     const visiblePalette = palette.filter((_, i) => visibility[i]);
     drawPaths(ctx as any, positions, visibleReps, visiblePalette);
   }
@@ -331,7 +347,6 @@ function renderResults() {
 
   const startPct = (startTime / video.duration * 100).toFixed(3);
 
-  // Transport controls
   controls.innerHTML = `
     <div class="transport">
       <button class="btn btn-secondary" id="res-play-pause">▶</button>
@@ -348,7 +363,7 @@ function renderResults() {
   `;
 
   const playPauseBtn = document.getElementById("res-play-pause")!;
-  const scrubber = document.getElementById("res-scrubber") as HTMLInputElement;
+  const scrubber     = document.getElementById("res-scrubber") as HTMLInputElement;
 
   video.addEventListener("timeupdate", () => { scrubber.value = String(video.currentTime); });
   video.addEventListener("play",  () => { playPauseBtn.textContent = "⏸"; });
@@ -392,12 +407,34 @@ function renderResults() {
 
 // ---- Main render ----
 
+const debugEl = document.getElementById("debug")!;
+
 function render() {
+  const skip = new Set(["positions", "reps", "pauses", "palette"]);
+  debugEl.textContent = JSON.stringify(state, (k, v) => k === "file" ? v.name : skip.has(k) ? undefined : v, 2);
+  if (state.stage !== "endcapSelectZooming" && state.stage !== "endcapPendingZooming") {
+    closeZoomModal();
+  }
   switch (state.stage) {
-    case "upload":       renderUpload();   break;
-    case "endcapSelect": renderEndcapSelect(); break;
-    case "analyzing":    renderAnalyzing(); break;
-    case "results":      renderResults(); break;
+    case "upload":
+      renderUpload();
+      break;
+    case "endcapSelect":
+    case "endcapPending":
+      renderEndcapSelect();
+      break;
+    case "endcapSelectZooming":
+    case "endcapPendingZooming":
+      zoomViewCenter = { x: state.zoomCenter.x, y: state.zoomCenter.y };
+      renderZoomCanvas();
+      zoomModal.classList.add("open");
+      break;
+    case "analyzing":
+      renderAnalyzing();
+      break;
+    case "results":
+      renderResults();
+      break;
   }
 }
 
