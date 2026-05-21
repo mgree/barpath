@@ -1,4 +1,4 @@
-export type Rep = { startFrame: number; endFrame: number };
+export type Rep = { startFrame: number; endFrame: number; velocity?: number };
 export type Pause = { startFrame: number; endFrame: number; durationMs: number };
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;

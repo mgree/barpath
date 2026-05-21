@@ -1,6 +1,7 @@
 import { transition, AppState, AppEvent } from "./state.js";
 import { drawPaths } from "./annotate.js";
 import { trackPoint } from "./tracker.js";
+import { smooth, detectReps, detectPauses } from "./analysis.js";
 
 declare const cv: any;
 
@@ -54,7 +55,7 @@ let fps = 30;
 
 function seek(t: number): Promise<void> {
   return new Promise((resolve) => {
-    video.addEventListener("seeked", resolve, { once: true });
+    video.addEventListener("seeked", () => resolve(), { once: true });
     video.currentTime = t;
   });
 }
@@ -317,14 +318,14 @@ async function renderAnalyzing() {
     ctx.stroke();
   }
 
+  const positionsFps = 1 / step;
+  const smoothedPos = smooth(positions);
+  const ys = smoothedPos.map(p => p.y);
+  const reps = detectReps(ys, positionsFps);
+  const pauses = detectPauses(smoothedPos, reps, positionsFps);
+
   const palette = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
-  dispatch({
-    type: "analysisComplete",
-    positions,
-    reps: [{ startFrame: 0, endFrame: positions.length - 1 }],
-    pauses: [],
-    palette,
-  });
+  dispatch({ type: "analysisComplete", positions, reps, pauses, palette });
 }
 
 function renderResults() {
