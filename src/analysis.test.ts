@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { smooth, velocity, detectReps, detectPauses } from "./analysis.js";
+import { smooth, velocity, detectReps, detectPauses, maxRange, minRange } from "./analysis.js";
 import type { Rep } from "./annotate.js";
 
 // Box-Muller: uniform -> Gaussian
@@ -53,6 +53,29 @@ describe("detectReps", () => {
       expect(Math.abs(reps[k].startFrame - k * T)).toBeLessThan(4);
       expect(Math.abs(reps[k].endFrame - (k + 1) * T)).toBeLessThan(4);
     }
+  });
+
+  test("filters lockout wobbles from bench-press-like signal", () => {
+    // Genuine reps: bar travels lockout (y=50) → chest (y=150) → lockout, inner range=100px.
+    // Wobble: bar oscillates ±10px around lockout, inner range=20px.
+    // minRepDepthFraction=0.5 → need ≥50px; genuine reps pass, wobble filtered.
+    const fps = 30;
+    const repFrames = 60, wobbleFrames = 30;
+    const N = 2 * repFrames + wobbleFrames;
+    const ys = Array.from({ length: N }, (_, i) => {
+      if (i < repFrames)
+        return 50 + 100 * Math.sin(Math.PI * i / repFrames);
+      if (i < repFrames + wobbleFrames)
+        return 50 + 10 * Math.sin(2 * Math.PI * (i - repFrames) / 15);
+      return 50 + 100 * Math.sin(Math.PI * (i - repFrames - wobbleFrames) / repFrames);
+    });
+    const smoothedYs = smooth(ys.map(y => ({ x: 0, y })), 3).map(p => p.y);
+    const reps = detectReps(smoothedYs, fps);
+
+    expect(reps.length).toBe(2);
+    for (const rep of reps)
+      expect(maxRange(ys, rep.startFrame, rep.endFrame) - minRange(ys, rep.startFrame, rep.endFrame))
+        .toBeGreaterThan(50);
   });
 
   test("mean concentric velocity is close to theoretical value", { repeats: 100 }, () => {

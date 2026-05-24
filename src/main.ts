@@ -1,5 +1,5 @@
 import { transition, AppState, AppEvent } from "./state.js";
-import { drawPaths } from "./annotate.js";
+import { drawPaths, drawPauseMarkers } from "./annotate.js";
 import { trackPoint } from "./tracker.js";
 import { smooth, detectReps, detectPauses } from "./analysis.js";
 
@@ -342,11 +342,21 @@ function renderResults() {
     const visibleReps    = reps.filter((_,    i) => visibility[i]);
     const visiblePalette = palette.filter((_, i) => visibility[i]);
     drawPaths(ctx as any, positions, visibleReps, visiblePalette);
+    drawPauseMarkers(ctx as any, positions, pauses);
   }
 
   redraw();
 
   const startPct = (startTime / video.duration * 100).toFixed(3);
+
+  const repMarkers = reps.map((rep, i) => {
+    const color = palette[i % palette.length];
+    const s = startTime + rep.startFrame / fps;
+    const e = startTime + rep.endFrame   / fps;
+    const sp = (s / video.duration * 100).toFixed(3);
+    const ep = (e / video.duration * 100).toFixed(3);
+    return `<div style="position:absolute;top:25%;bottom:25%;left:${sp}%;width:calc(${ep}% - ${sp}%);background:${color};opacity:0.5;pointer-events:none"></div>`;
+  }).join("");
 
   controls.innerHTML = `
     <div class="transport">
@@ -354,10 +364,11 @@ function renderResults() {
       <div style="flex:1;position:relative">
         <input type="range" id="res-scrubber" min="0" max="${video.duration}" step="any" value="${video.currentTime}" style="width:100%">
         <div style="position:absolute;top:0;bottom:0;left:${startPct}%;width:2px;background:#facc15;pointer-events:none;transform:translateX(-50%)"></div>
+        ${repMarkers}
       </div>
     </div>
     <table class="rep-table">
-      <thead><tr><th></th><th>#</th><th>Frames</th></tr></thead>
+      <thead><tr><th></th><th>#</th><th>Duration</th><th>Velocity</th><th>Pauses</th></tr></thead>
       <tbody id="rep-tbody"></tbody>
     </table>
     <button class="btn btn-secondary" id="export-btn">Export PNG</button>
@@ -375,11 +386,19 @@ function renderResults() {
 
   const tbody = document.getElementById("rep-tbody")!;
   reps.forEach((rep, i) => {
+    const repPauses = pauses.filter(p => p.startFrame >= rep.startFrame && p.endFrame <= rep.endFrame);
+    const durSec = ((rep.endFrame - rep.startFrame + 1) / fps).toFixed(2);
+    const velStr = rep.velocity != null ? (rep.velocity * fps).toFixed(0) + " px/s" : "—";
+    const pauseStr = repPauses.length > 0
+      ? repPauses.map(p => (p.durationMs / 1000).toFixed(2) + "s").join(", ")
+      : "—";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><span class="swatch" style="background:${palette[i % palette.length]}"></span></td>
       <td>${i + 1}</td>
-      <td>${rep.endFrame - rep.startFrame + 1}</td>
+      <td>${durSec}s</td>
+      <td>${velStr}</td>
+      <td>${pauseStr}</td>
     `;
     tr.addEventListener("click", () => {
       visibility[i] = !visibility[i];

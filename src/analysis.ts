@@ -86,13 +86,16 @@ function meanConcentricVelocity(vel: { vx: number; vy: number }[], rep: Rep): nu
   return count > 0 ? sum / count : 0;
 }
 
+export { maxRange, minRange };
+
 export function detectReps(
   ys: number[],
   fps: number,
-  opts?: { minProminenceFraction?: number; minDurationSec?: number }
+  opts?: { minProminenceFraction?: number; minDurationSec?: number; minRepDepthFraction?: number }
 ): Rep[] {
-  const minProminenceFraction = opts?.minProminenceFraction ?? 0.15;
-  const minDurationFrames = Math.round((opts?.minDurationSec ?? 0.5) * fps);
+  const minProminenceFraction = opts?.minProminenceFraction ?? 0.10;
+  const minDurationFrames     = Math.round((opts?.minDurationSec ?? 0.5) * fps);
+  const minRepDepthFraction   = opts?.minRepDepthFraction ?? 0.5;
 
   const n = ys.length;
   if (n < 3) return [];
@@ -112,18 +115,32 @@ export function detectReps(
     ? (nPeaks > nValleys ? "peak" : "valley")
     : extrema[0].kind;
 
-  const boundaries = extrema.filter(e => e.kind === boundaryKind);
-  const vel = velocity(ys.map(y => ({ x: 0, y })));
-  const reps: Rep[] = [];
-
-  for (let i = 0; i < boundaries.length - 1; i++) {
-    const startFrame = boundaries[i].frame;
-    const endFrame   = boundaries[i + 1].frame;
-    if (endFrame - startFrame < minDurationFrames) continue;
-    reps.push({ startFrame, endFrame, velocity: meanConcentricVelocity(vel, { startFrame, endFrame }) });
+  // Merge boundary extrema that are closer than minDurationFrames, keeping the more extreme.
+  const merged: Extremum[] = [];
+  for (const b of extrema.filter(e => e.kind === boundaryKind)) {
+    const last = merged[merged.length - 1];
+    if (last && b.frame - last.frame < minDurationFrames) {
+      if ((boundaryKind === "valley" && ys[b.frame] < ys[last.frame]) ||
+          (boundaryKind === "peak"   && ys[b.frame] > ys[last.frame]))
+        merged[merged.length - 1] = b;
+    } else {
+      merged.push(b);
+    }
   }
 
-  return reps;
+  // Form candidate rep intervals and apply adaptive inner-range filter.
+  const vel = velocity(ys.map(y => ({ x: 0, y })));
+  const candidates = Array.from({ length: merged.length - 1 }, (_, i) => ({
+    startFrame: merged[i].frame, endFrame: merged[i + 1].frame,
+  }));
+  const innerRanges = candidates.map(c =>
+    maxRange(ys, c.startFrame, c.endFrame) - minRange(ys, c.startFrame, c.endFrame));
+  const maxInner = Math.max(...innerRanges, 0);
+  const minInner = minRepDepthFraction * maxInner;
+
+  return candidates
+    .filter((_, i) => innerRanges[i] >= minInner)
+    .map(c => ({ ...c, velocity: meanConcentricVelocity(vel, c) }));
 }
 
 export function detectPauses(
