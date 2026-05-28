@@ -60,7 +60,7 @@ function seek(t: number): Promise<void> {
   });
 }
 
-function captureFrame() {
+function captureFrame(): ImageData {
   captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
   return captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
 }
@@ -162,10 +162,6 @@ function paintCrosshair(c: CanvasRenderingContext2D, x: number, y: number) {
   c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.stroke();
 }
 
-function drawCrosshair(x: number, y: number) {
-  ctx.clearRect(0, 0, overlay.width, overlay.height);
-  paintCrosshair(ctx, x, y);
-}
 
 // ---- Controls panels ----
 
