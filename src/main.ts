@@ -24,6 +24,17 @@ const cvReady = new Promise<void>((resolve) => {
   else cv.onRuntimeInitialized = resolve;
 });
 
+// ---- Browser compatibility ----
+
+if (/Firefox/.test(navigator.userAgent) && /Android/.test(navigator.userAgent)) {
+  const banner = document.createElement("div");
+  banner.innerHTML = `Firefox for Android cannot read video frames. 🥲 <br> Please use Chrome.`;
+  banner.style.cssText = "background:#7f1d1d;color:#fca5a5;padding:0.5rem 1rem;font-size:0.85rem;text-align:center";
+  document.body.insertBefore(banner, document.body.firstChild);
+  const upload = document.getElementById("file-input") as HTMLInputElement;
+  upload.disabled = true;
+}
+
 // ---- State ----
 
 let state: AppState = { stage: "upload" };
