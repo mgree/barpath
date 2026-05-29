@@ -1,0 +1,56 @@
+bench_side.mp4:
+  meta: "bench press, side view"
+  start_time: 16.6998
+  seed_x: 1216
+  seed_y: 30
+  end_time: 22.0000
+  expect:
+    reps: ~
+    # pauses:          # expected within-rep pauses
+    #   - rep: 1       # 1-indexed
+    #     min_sec: 0.8
+    #     max_sec: 2.0
+    # velocity:        # mean concentric velocity bounds across reps (m/s)
+    #   min: 0.25
+    #   max: 0.45
+
+bench_threequarters.mp4:
+  meta: "bench press, three-quarter view"
+  start_time: 0
+  seed_x: 1716
+  seed_y: 252
+  expect:
+    reps: ~
+
+deadlift_side.mp4:
+  meta: "deadlift, side view"
+  start_time: 0
+  seed_x: 561
+  seed_y: 1384
+  expect:
+    reps: ~
+
+deadlift_threequarters.mp4:
+  meta: "deadlift, three-quarter view"
+  start_time: 0
+  seed_x: 911
+  seed_y: 980
+  expect:
+    reps: ~
+
+squat_side.mp4:
+  meta: "squat, side view"
+  start_time: 0
+  seed_x: 823
+  seed_y: 260
+  expect:
+    reps: ~
+
+squat_threequarters.mp4:
+  meta: "squat, three-quarter view"
+  start_time: 12.9332
+  seed_x: 708
+  seed_y: 36
+  end_time: 30.0000
+  expect:
+    reps: ~
