@@ -23,7 +23,7 @@ jobs:
           cache: npm
 
       - name: Install system dependencies
-        run: sudo apt-get install -y ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install node dependencies
         run: npm ci
