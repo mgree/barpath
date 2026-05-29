@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
-import { smooth, velocity, detectReps, detectPauses, maxRange, minRange } from "./analysis.js";
-import type { Rep } from "./annotate.js";
+import { smooth, velocity, detectReps, detectPauses, maxRange, minRange } from "../src/analysis.js";
+import type { Rep } from "../src/annotate.js";
 
 // Box-Muller: uniform -> Gaussian
 function randn(): number {

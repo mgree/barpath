@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { transition, AppState } from "./state.js";
+import { transition, AppState } from "../src/state.js";
 
 const file = new File([""], "test.mp4", { type: "video/mp4" });
 const startPt   = { x: 100, y: 200 };

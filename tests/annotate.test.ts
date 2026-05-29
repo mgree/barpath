@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { createCanvas } from "canvas";
-import { drawBackground, drawPaths, drawPauseMarkers, annotate } from "./annotate.js";
+import { drawBackground, drawPaths, drawPauseMarkers, annotate } from "../src/annotate.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeCtx(w = 100, h = 100): any {

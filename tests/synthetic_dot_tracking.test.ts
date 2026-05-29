@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
-import cv from "./cv.js";
-import { trackPoint, Frame } from "./tracker.js";
+import cv from "../src/cv.js";
+import { trackPoint, Frame } from "../src/tracker.js";
 
 const WIDTH = 200;
 const HEIGHT = 200;

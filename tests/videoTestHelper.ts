@@ -4,11 +4,11 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createCanvas } from "canvas";
-import cv from "./cv.js";
-import { trackPoint, Frame } from "./tracker.js";
-import { drawBackground, drawPaths } from "./annotate.js";
+import cv from "../src/cv.js";
+import { trackPoint, Frame } from "../src/tracker.js";
+import { drawBackground, drawPaths } from "../src/annotate.js";
 
-const TESTDATA = path.join(path.dirname(fileURLToPath(import.meta.url)), "../testdata");
+const TESTDATA = path.join(path.dirname(fileURLToPath(import.meta.url)), "./data");
 const OUTPUT = path.join(TESTDATA, "output");
 
 const verbose = !!process.env.VERBOSE;
