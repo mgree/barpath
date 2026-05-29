@@ -150,7 +150,7 @@ export function detectPauses(
   opts?: { velocityThresholdFraction?: number; minDurationSec?: number }
 ): Pause[] {
   const velocityThresholdFraction = opts?.velocityThresholdFraction ?? 0.05;
-  const minDurationFrames = Math.round((opts?.minDurationSec ?? 0.3) * fps);
+  const minDurationFrames = Math.round((opts?.minDurationSec ?? 0.2) * fps);
 
   const vel = velocity(smoothed);
   const maxSpeed = vel.reduce((m, v) => Math.max(m, Math.abs(v.vy)), 0);

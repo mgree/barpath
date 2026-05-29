@@ -65,6 +65,10 @@ Inputs: a `CanvasRenderingContext2D` (or `OffscreenCanvas`), analysis results, a
 
 # For later
 
+## Figure out Firefox on Android story
+
+- [ ] We couldn't read frames at all... HW buffer issue, says Claude. VideoDecoder and other APIs are not available. PureJ S approach may work?
+
 ## Tracking improvements
 
 - [ ] Automatic re-initialization on tracking loss (prompt user to re-click or advance frames instead)

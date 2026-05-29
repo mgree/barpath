@@ -224,7 +224,7 @@ async function renderEndcapSelect() {
   ctx.clearRect(0, 0, overlay.width, overlay.height);
 
   controls.innerHTML = `
-    <p class="hint">Scrub to the starting frame, then tap the barbell endcap.</p>
+    <p class="hint">Scrub to the starting frame, then tap what you'd like to track (e.g., the barbell endcap).</p>
     <input type="range" id="scrubber" min="0" max="${video.duration}" step="any" value="${video.currentTime}">
     <div class="transport">
       <button class="btn btn-secondary" id="skip-back-big">⏮</button>
@@ -233,7 +233,7 @@ async function renderEndcapSelect() {
       <button class="btn btn-secondary" id="step-fwd">▶</button>
       <button class="btn btn-secondary" id="skip-fwd-big">⏭</button>
     </div>
-    <button class="btn btn-primary" id="confirm-endcap" disabled>Confirm →</button>
+    <button class="btn btn-primary" id="confirm-endcap" disabled>Analyze barpath 🔎</button>
   `;
 
   const scrubber     = document.getElementById("scrubber") as HTMLInputElement;
